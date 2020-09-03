@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/replicon/fast-archiver/falib"
+	"github.com/hendych/fast-archiver/falib"
 	"io"
 	"log"
 	"math"
