@@ -56,8 +56,6 @@ func (u *Unarchiver) Run() error {
 		return ErrFileHeaderMismatch
 	}
 
-	u.Logger.Warning("sampe")
-
 	for {
 		var pathSize uint16
 		err = binary.Read(reader, binary.BigEndian, &pathSize)
@@ -201,6 +199,7 @@ func (u *Unarchiver) Run() error {
 func (u *Unarchiver) writeFile(blockSource chan block, workInProgress *sync.WaitGroup) {
 	var file *os.File = nil
 	var bufferedFile *bufio.Writer
+	var modTime time.Time = time.Now()
 	for block := range blockSource {
 		if block.blockType == blockTypeStartOfFile {
 			u.Logger.Verbose(block.filePath)
@@ -217,6 +216,7 @@ func (u *Unarchiver) writeFile(blockSource chan block, workInProgress *sync.Wait
 			}
 			file = tmp
 			bufferedFile = bufio.NewWriter(file)
+			modTime = time.Unix(int64(block.modTime), 0)
 
 			if !u.IgnoreOwners {
 				err = file.Chown(block.uid, block.gid)
@@ -230,16 +230,17 @@ func (u *Unarchiver) writeFile(blockSource chan block, workInProgress *sync.Wait
 					u.Logger.Warning("Unable to chmod file to", block.mode, ":", err.Error())
 				}
 			}
-            err = os.Chtimes(block.filePath, time.Unix(int64(block.modTime), 0), time.Unix(int64(block.modTime), 0))
-   			if err != nil {
-   				u.Logger.Warning("Unable to chtimes file error: ", err.Error())
-   			}
 		} else if file == nil {
 			// do nothing; file couldn't be opened for write
 		} else if block.blockType == blockTypeEndOfFile {
-			bufferedFile.Flush()
+            bufferedFile.Flush()
 			file.Close()
 			file = nil
+
+            err := os.Chtimes(block.filePath, modTime, modTime)
+   			if err != nil {
+   				u.Logger.Warning("Unable to chtimes file error: ", err.Error())
+   			}
 		} else {
 			_, err := bufferedFile.Write(block.buffer[:block.numBytes])
 			if err != nil {
