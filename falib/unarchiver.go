@@ -208,7 +208,7 @@ func (u *Unarchiver) Run() error {
 			}
 
 			if !u.IgnoreOwners {
-				err = os.Chown(filePath, int(uid), int(gid))
+				err = os.Lchown(filePath, int(uid), int(gid))
 				if err != nil {
 					u.Logger.Warning("Directory chown error:", err.Error())
 				}
