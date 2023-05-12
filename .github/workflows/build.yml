@@ -1,0 +1,49 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Build
+
+on:
+  push:
+    branches: [ "master" ]
+    tags:
+      - '*'
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    name: Build binaries
+    permissions: write-all
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.19
+
+    - name: Init
+      run : |
+        go mod init github.com/kidrinse/fast-archiver
+        sed -i 's/hendych/kidrinse/g' ${{ github.workspace }}/main.go
+    - name: Get Depends
+      run: go get github.com/kidrinse/fast-archiver/falib
+    - name: Build
+      run: |
+        mkdir ${{ github.workspace }}/bin
+        env GOOS=linux go build -o ${{ github.workspace }}/bin/fast-archiver .
+        sed -i '1i //go:build exclude' ${{ github.workspace }}/falib/util_unix.go
+        sed -i 's/"time"/_ "time"/g' ${{ github.workspace }}/falib/util_windows.go
+        env GOOS=windows go build -o ${{ github.workspace }}/bin/fast-archiver.exe .
+
+    - name: Upload binaries to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ${{ github.workspace }}/bin/*
+        tag: ${{ github.ref_name }}
+        overwrite: true
+        file_glob: true
+        body: "Binaries release"
